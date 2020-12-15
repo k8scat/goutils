@@ -3,14 +3,15 @@ package request
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
-	"strings"
+	"os"
+	"path/filepath"
 )
 
 const (
@@ -94,9 +95,8 @@ func RandomUA() string {
 	return userAgentList[rand.Intn(len(userAgentList))]
 }
 
-func JSONBody(data map[string]interface{}) (body *bytes.Buffer, err error) {
+func CreateJSONPayload(data map[string]interface{}) (body *bytes.Buffer, err error) {
 	if data == nil {
-		err = errors.New("data cannot be nil")
 		return
 	}
 	body = &bytes.Buffer{}
@@ -104,13 +104,25 @@ func JSONBody(data map[string]interface{}) (body *bytes.Buffer, err error) {
 	return
 }
 
-func FormBody(values *url.Values) (body *strings.Reader, err error) {
-	if values == nil {
-		err = errors.New("values cannot be nil")
-		return
+func CreateFormPayload(textFields, fileFields map[string]string) (*bytes.Buffer, error) {
+	payload := &bytes.Buffer{}
+	writer := multipart.NewWriter(payload)
+	defer writer.Close()
+	for key, value := range textFields {
+		writer.WriteField(key, value)
 	}
-	body = strings.NewReader(values.Encode())
-	return
+	for key, value := range fileFields {
+		file, err := os.Open(value)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		fw, err := writer.CreateFormFile(key, filepath.Base(value))
+		if _, err := io.Copy(fw, file); err != nil {
+			return nil, err
+		}
+	}
+	return payload, nil
 }
 
 func ReadBody(resp *http.Response) (string, error) {
