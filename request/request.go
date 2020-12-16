@@ -22,18 +22,20 @@ const (
 type Request struct {
 	BaseURL        string
 	DefaultHeaders map[string]string
+	DefaultCookies []*http.Cookie
 	Client         *http.Client
 }
 
-func NewRequest(baseURL string, defaultHeaders map[string]string) *Request {
+func NewRequest(baseURL string, defaultHeaders map[string]string, defaultCookies []*http.Cookie) *Request {
 	return &Request{
 		BaseURL:        baseURL,
 		DefaultHeaders: defaultHeaders,
+		DefaultCookies: defaultCookies,
 		Client:         http.DefaultClient,
 	}
 }
 
-func (r *Request) setRequest(req *http.Request, params *url.Values, headers map[string]string, cookies map[string]string) *http.Request {
+func (r *Request) setRequest(req *http.Request, params *url.Values, headers map[string]string, cookies []*http.Cookie) *http.Request {
 	if r.DefaultHeaders != nil {
 		for k, v := range r.DefaultHeaders {
 			req.Header.Set(k, v)
@@ -47,18 +49,13 @@ func (r *Request) setRequest(req *http.Request, params *url.Values, headers map[
 			req.Header.Set(k, v)
 		}
 	}
-	if cookies != nil {
-		for k, v := range cookies {
-			req.AddCookie(&http.Cookie{
-				Name:  k,
-				Value: v,
-			})
-		}
+	for _, c := range cookies {
+		req.AddCookie(c)
 	}
 	return req
 }
 
-func (r *Request) Get(endpoint string, params *url.Values, headers map[string]string, cookies map[string]string) (resp *http.Response, err error) {
+func (r *Request) Get(endpoint string, params *url.Values, headers map[string]string, cookies []*http.Cookie) (resp *http.Response, err error) {
 	url := fmt.Sprintf("%s%s", r.BaseURL, endpoint)
 	var req *http.Request
 	req, err = http.NewRequest(http.MethodGet, url, nil)
@@ -70,7 +67,7 @@ func (r *Request) Get(endpoint string, params *url.Values, headers map[string]st
 	return
 }
 
-func (r *Request) Post(endpoint string, params *url.Values, body io.Reader, headers map[string]string, cookies map[string]string) (resp *http.Response, err error) {
+func (r *Request) Post(endpoint string, params *url.Values, body io.Reader, headers map[string]string, cookies []*http.Cookie) (resp *http.Response, err error) {
 	url := fmt.Sprintf("%s%s", r.BaseURL, endpoint)
 	var req *http.Request
 	req, err = http.NewRequest(http.MethodPost, url, body)
@@ -109,16 +106,20 @@ func CreateFormPayload(textFields, fileFields map[string]string) (*bytes.Buffer,
 	writer := multipart.NewWriter(payload)
 	defer writer.Close()
 	for key, value := range textFields {
-		writer.WriteField(key, value)
+		if err := writer.WriteField(key, value); err != nil {
+			return nil, err
+		}
 	}
 	for key, value := range fileFields {
 		file, err := os.Open(value)
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
 		fw, err := writer.CreateFormFile(key, filepath.Base(value))
 		if _, err := io.Copy(fw, file); err != nil {
+			return nil, err
+		}
+		if err := file.Close(); err != nil {
 			return nil, err
 		}
 	}
