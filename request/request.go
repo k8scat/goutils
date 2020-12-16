@@ -36,11 +36,13 @@ func NewRequest(baseURL string, defaultHeaders map[string]string, defaultCookies
 }
 
 func (r *Request) setRequest(req *http.Request, params *url.Values, headers map[string]string, cookies []*http.Cookie) *http.Request {
-	if r.DefaultHeaders != nil {
-		for k, v := range r.DefaultHeaders {
-			req.Header.Set(k, v)
-		}
+	for k, v := range r.DefaultHeaders {
+		req.Header.Set(k, v)
 	}
+	for _, c := range r.DefaultCookies {
+		req.AddCookie(c)
+	}
+
 	if params != nil {
 		req.URL.RawQuery = params.Encode()
 	}
