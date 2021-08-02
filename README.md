@@ -1,6 +1,5 @@
-# gotie
+# goutils
 
-```
-go get -u github.com/k8scat/gotie
-
+```bash
+go get -u github.com/k8scat/goutils
 ```

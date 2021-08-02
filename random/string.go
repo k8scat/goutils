@@ -7,7 +7,7 @@ import (
 
 const (
 	DigitsAndAsciiLetters = "0123456789ABCDEFGHIJKLMNOPQRSTUVXWYZabcdefghijklmnopqrstuvxwyz"
-	LowLetters            = "abcdefghijklmnopqrstuvxwyz"
+	LowerLetters          = "abcdefghijklmnopqrstuvxwyz"
 	UpperLetters          = "ABCDEFGHIJKLMNOPQRSTUVXWYZ"
 	Digits                = "0123456789"
 	AsciiLetters          = "ABCDEFGHIJKLMNOPQRSTUVXWYZabcdefghijklmnopqrstuvxwyz"
