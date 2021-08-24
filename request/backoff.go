@@ -28,16 +28,23 @@ type BackOff struct {
 }
 
 func (b *BackOff) Do(client *http.Client, req *http.Request) (*http.Response, error) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Read request body failed: %+v", err)
+	hasBody := req.Body != nil
+	var body []byte
+	var err error
+	if hasBody {
+		body, err = ioutil.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("Read request body failed: %+v", err)
+		}
+		req.Body.Close()
+		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	req.Body.Close()
-	req.Body = io.NopCloser(bytes.NewReader(body))
 
 	var resp *http.Response
 	op := func() (err error) {
-		req.Body = ioutil.NopCloser(bytes.NewReader(body))
+		if hasBody {
+			req.Body = ioutil.NopCloser(bytes.NewReader(body))
+		}
 		resp, err = client.Do(req)
 		if err != nil {
 			err = fmt.Errorf("Request err: %+v", err)
