@@ -54,7 +54,11 @@ func (r *GroupRobot) Send(content string, mentionedUserIDList, mentionedMobileLi
 	client := &http.Client{
 		Timeout: RequestTimeout,
 	}
-	resp, err := request.DefaultBackOff.Do(client, req)
+	backoff := &request.BackOffClient{
+		BackOff: request.DefaultBackOff,
+		Notify:  request.DefaultNotify,
+	}
+	resp, err := backoff.Do(client, req)
 	if err != nil {
 		return err
 	}

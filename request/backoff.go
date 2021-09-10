@@ -5,29 +5,34 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 )
 
-var DefaultBackOff = &BackOff{
-	BackOff: &backoff.ExponentialBackOff{
+var (
+	DefaultBackOff = &backoff.ExponentialBackOff{
 		InitialInterval:     200 * time.Millisecond,
 		RandomizationFactor: backoff.DefaultRandomizationFactor,
 		Multiplier:          backoff.DefaultMultiplier,
 		MaxInterval:         5 * time.Second,
 		MaxElapsedTime:      10 * time.Second,
 		Clock:               backoff.SystemClock,
-	},
-}
+	}
 
-type BackOff struct {
+	DefaultNotify = func(err error, t time.Duration) {
+		log.Printf("BackOff err: %+v, retry duration: %d ms", err, t.Milliseconds())
+	}
+)
+
+type BackOffClient struct {
 	BackOff backoff.BackOff
 	Notify  func(error, time.Duration)
 }
 
-func (b *BackOff) Do(client *http.Client, req *http.Request) (*http.Response, error) {
+func (c *BackOffClient) Do(client *http.Client, req *http.Request) (*http.Response, error) {
 	hasBody := req.Body != nil
 	var body []byte
 	var err error
@@ -51,5 +56,5 @@ func (b *BackOff) Do(client *http.Client, req *http.Request) (*http.Response, er
 		}
 		return err
 	}
-	return resp, backoff.RetryNotify(op, b.BackOff, b.Notify)
+	return resp, backoff.RetryNotify(op, c.BackOff, c.Notify)
 }
