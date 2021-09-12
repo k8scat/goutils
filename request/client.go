@@ -7,14 +7,42 @@ import (
 	"net/url"
 )
 
-type Client struct {
-	Client         *http.Client
+type Request struct {
+	HttpClient    *http.Client
+	BackOffClient *BackOffClient
+
 	BaseURL        string
 	DefaultHeaders map[string]string
 	DefaultCookies []*http.Cookie
 }
 
-func (r *Client) setRequest(req *http.Request, params *url.Values, headers map[string]string, cookies []*http.Cookie) {
+func (r *Request) Get(endpoint string, params *url.Values, headers map[string]string, cookies []*http.Cookie) (*http.Response, error) {
+	url := concatURL(r.BaseURL, endpoint)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	r.setRequest(req, params, headers, cookies)
+	if r.BackOffClient != nil {
+		return r.BackOffClient.Do(r.HttpClient, req)
+	}
+	return r.HttpClient.Do(req)
+}
+
+func (r *Request) Post(endpoint string, params *url.Values, body io.Reader, headers map[string]string, cookies []*http.Cookie) (*http.Response, error) {
+	url := fmt.Sprintf("%s%s", r.BaseURL, endpoint)
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		return nil, err
+	}
+	r.setRequest(req, params, headers, cookies)
+	if r.BackOffClient != nil {
+		return r.BackOffClient.Do(r.HttpClient, req)
+	}
+	return r.HttpClient.Do(req)
+}
+
+func (r *Request) setRequest(req *http.Request, params *url.Values, headers map[string]string, cookies []*http.Cookie) {
 	for k, v := range r.DefaultHeaders {
 		req.Header.Set(k, v)
 	}
@@ -31,26 +59,4 @@ func (r *Client) setRequest(req *http.Request, params *url.Values, headers map[s
 	for _, c := range cookies {
 		req.AddCookie(c)
 	}
-}
-
-func (c *Client) Get(endpoint string, params *url.Values, headers map[string]string, cookies []*http.Cookie) (*http.Response, error) {
-	url := concatURL(c.BaseURL, endpoint)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	c.setRequest(req, params, headers, cookies)
-	return c.Client.Do(req)
-}
-
-func (r *Client) Post(endpoint string, params *url.Values, body io.Reader, headers map[string]string, cookies []*http.Cookie) (resp *http.Response, err error) {
-	url := fmt.Sprintf("%s%s", r.BaseURL, endpoint)
-	var req *http.Request
-	req, err = http.NewRequest(http.MethodPost, url, body)
-	if err != nil {
-		return
-	}
-	r.setRequest(req, params, headers, cookies)
-	resp, err = r.Client.Do(req)
-	return
 }
